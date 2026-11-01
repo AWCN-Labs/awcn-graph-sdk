@@ -1,45 +1,68 @@
 # AWCN Graph SDK
 
-> TypeScript SDK enabling AI agents to query The Graph programmatically.
+A small TypeScript client for reading agent job and earnings data from an AWCN subgraph on The Graph.
 
-[![npm](https://img.shields.io/npm/v/@awcn/graph-sdk)](https://www.npmjs.com/package/@awcn/graph-sdk)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+The idea: an autonomous agent should be able to ask "who ran which job, and who earned what" without a human writing GraphQL. This package is the client half of that idea. The indexing half is [`awcn-subgraph`](https://github.com/AWCN-Labs/awcn-subgraph). The SDK was prepared for a The Graph Foundation grant proposal (tooling category) and the subgraph for the same program's data services category. It is an early prototype, not a published package.
 
-## Overview
+## What it does
 
-The AWCN Graph SDK makes AI agents first-class consumers of The Graph indexed data. Built for The Graph Foundation Grant (Tooling category).
+- `AWCNGraphClient` wraps `graphql-request` and sends queries to a subgraph URL you provide, with an optional bearer API key (`src/client.ts`).
+- `getRecentJobs({ limit, agentId })` returns the latest jobs, newest first, optionally for one agent.
+- `getAgent(agentId)` returns an agent's address, tier, trust score, job count and total earned.
+- `getTopEarners(limit)` returns agents ordered by total earned.
 
-## Quick Start
+That is the whole implemented surface: three read queries over the `Job` and `Agent` entities of the subgraph.
 
-```typescript
+## Not built yet
+
+An earlier README described features the code does not contain. Treat these as plans:
+
+- Live subscriptions (WebSocket) for job events.
+- A response cache.
+- Multi-network support.
+- A query builder: `src/index.ts` re-exports `AgentQueryBuilder` from `./query-builder`, and types from `./types`. Neither file exists, so the package does not compile yet.
+- Generated types from the subgraph schema (a `codegen` script is declared; there is no codegen config).
+- Tests (Jest is declared; there are none).
+
+Queries are built by string interpolation. Parameterize them before pointing this at untrusted input.
+
+## How it's built
+
+- TypeScript, `graphql-request`, `graphql`.
+- `@graphprotocol/client-cli` is declared for codegen but not used by the source yet.
+
+## Repository layout
+
+```
+src/client.ts    AWCNGraphClient and its three queries
+src/index.ts     public exports (references files that are still missing)
+package.json     scripts: build, test, codegen
+LICENSE
+```
+
+## Run it locally
+
+```bash
+npm install
+npm run build    # fails until src/types.ts and src/query-builder.ts exist
+```
+
+Usage once it builds:
+
+```ts
 import { AWCNGraphClient } from "@awcn/graph-sdk";
 
 const client = new AWCNGraphClient({
-  subgraph: "AWCN-Labs/awcn-subgraph",
-  apiKey: process.env.GRAPH_API_KEY
+  subgraphUrl: "<query URL of your deployed AWCN subgraph>",
+  apiKey: process.env.GRAPH_API_KEY, // optional
 });
 
-// Query top earning agents
-const topAgents = await client.query.topEarners({ limit: 10, period: "7d" });
-
-// Get agent job history
-const jobs = await client.agents.jobHistory("saga", { limit: 50 });
-
-// Subscribe to real-time job completions
-client.subscribe.onJobCompleted((event) => {
-  console.log(`Agent ${event.agentId} completed job ${event.jobId}`);
-});
+const top = await client.getTopEarners(10);
+const jobs = await client.getRecentJobs({ limit: 20 });
 ```
 
-## Features
+There is no `.env.example`. The only environment key used by the example is `GRAPH_API_KEY`.
 
-- **Agent-native API** — designed for autonomous agent consumption, not just human devs
-- **Type-safe** — full TypeScript with auto-generated types from subgraph schema
-- **Real-time** — WebSocket subscriptions for live event streaming
-- **Caching** — built-in LRU cache to minimize API calls
-- **Multi-network** — Ethereum, Arbitrum, Base, Polygon support
+## Status
 
-## Grant Context
-
-Grant ask: $15,000-$40,000 | Timeline: 3 months | Maintainer: AWCN Labs
-
+Prototype. Five commits, all from one day in February 2026. Not published to npm and the default endpoint points at a subgraph that is not deployed, so pass your own `subgraphUrl`. Licensed under MIT, see `LICENSE`.
